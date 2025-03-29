@@ -133,7 +133,14 @@ Designed to bring transparency and liquidity to traditional timeshare models whi
 - As a **Voter**, I want to ensure proposals meet quorum and majority rules so that decisions are legitimate.
 
 ## Diagrams
+### Class Diagram
 ![Class Diagram](/diagrams/class-diagram.png)
+### Reserving a Week
+![Class Diagram](/diagrams/ReservingaWeek.png)
+### Creating and Voting on a Proposal
+![Class Diagram](/diagrams/CreatingandVotingonaProposal.jpg)
+### Purchasing Units in Marketplace
+![Class Diagram](/diagrams/PurchasingUnitsinMarketplace.png)
 
 # Installation
 ## Reguired
