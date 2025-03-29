@@ -136,7 +136,7 @@ Designed to bring transparency and liquidity to traditional timeshare models whi
 ### Class Diagram
 ![Class Diagram](/diagrams/class-diagram.png)
 ### Reserving a Week
-![Class Diagram](/diagrams/ReservingaWeek.png)
+![Class Diagram](/diagrams/ReservingaWeek.jpg)
 ### Creating and Voting on a Proposal
 ![Class Diagram](/diagrams/CreatingandVotingonaProposal.jpg)
 ### Purchasing Units in Marketplace
