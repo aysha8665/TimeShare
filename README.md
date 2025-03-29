@@ -131,3 +131,13 @@ Designed to bring transparency and liquidity to traditional timeshare models whi
 - As a **Voter**, I want to cast votes on proposals so that my ownership stake influences outcomes.
 - As a **Voter**, I want to check proposal statuses (active/executed) so that I can participate before deadlines.
 - As a **Voter**, I want to ensure proposals meet quorum and majority rules so that decisions are legitimate.
+
+## Diagrams
+![Class Diagram](/diagrams/class-diagram.png)
+
+# Installation
+## Reguired
+**Hardhat**
+https://hardhat.org/hardhat-runner/docs/getting-started#installation
+
+## time-share-app
