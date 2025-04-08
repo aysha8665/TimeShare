@@ -1,150 +1,106 @@
-# Decentralized Timeshare Management System
+# User Stories for SmartStay Project
 
-A blockchain-based platform built on Ethereum that revolutionizes timeshare ownership, trading, and usage through smart contracts. The system comprises four core components that work together to create a transparent and flexible ecosystem.
+## Property Owner
 
-## Core Components
+1. **As a property owner**, I want to register my property on the platform so that I can start minting reservation tokens.
+   - **Acceptance Criteria**:
+     - The platform provides a clear process for property registration.
+     - Property details are accurately captured and stored.
+     - The registration process includes necessary validations.
 
-### 🏠 TimeshareToken (ERC1155)
-- **Ownership Representation**: Tokenizes property ownership (1 token ID = 1 property)
-- **Dynamic Units**: Track fractional ownership percentages through token amounts
-- **Property Management**: 
-  - Create/update properties with metadata (location, amenities, fees)
-  - Mint initial ownership distributions
-  - Enforce annual maintenance fee payments
+2. **As a property owner**, I want my property to be verified by an admin before activating it for reservation minting.
+   - **Acceptance Criteria**:
+     - Admins have a mechanism to review and verify properties.
+     - Verified properties are marked as active.
+     - Only active properties can have reservations minted.
 
-### 💰 TimeshareMarketplace
-- **Peer-to-Peer Trading**: 
-  - List ownership units with custom pricing
-  - Purchase units with ETH
-  - Platform fee mechanism (configurable %)
-- **Secure Escrow**: 
-  - Automatic token transfers on successful sales
-  - Reentrancy-protected transactions
+3. **As a property owner**, I want to create unique reservation tokens for specific dates so that I can sell or rent out those time slots.
+   - **Acceptance Criteria**:
+     - The system allows minting of unique ERC721 tokens for each reservation slot.
+     - Each token includes metadata specifying the property, year, and week.
+     - Minting is restricted to verified and active properties.
 
-### 🗳️ TimeshareGovernance
-- **Proposal System**:
-  - Property managers/owners can propose improvements
-  - Voting weighted by ownership stake
-  - Quorum (25% participation) and majority rules
-- **Transparent Execution**:
-  - Time-limited voting periods
-  - On-chain proposal tracking
+4. **As a property owner**, I want to manage my property's availability by updating its status or details.
+   - **Acceptance Criteria**:
+     - The system allows updating of property status (active/inactive).
+     - Property owners can update their property's information.
+     - Updates are reflected accurately in the system.
 
-### 🗓️ ReservationSystem
-- **Week Management**:
-  - Reserve specific weeks (1-52) based on ownership
-  - Maintenance blocking/unblocking
-  - Rental marketplace integration
-- **Fee Enforcement**:
-  - Mandatory maintenance fee checks
-  - ETH payment processing for fees/rentals
+5. **As a property owner**, I want to receive payment when someone buys my minted reservation token through transactions facilitated by ReservationSwap.
+   - **Acceptance Criteria**:
+     - When a reservation token is transferred from me in exchange for ETH or other assets via ReservationSwap.
+     - The transaction is recorded on the blockchain.
+     - Funds are transferred securely according to smart contract logic.
 
-## Key Features
+## Admin
 
-✅ **Decentralized Ownership**  
-Fractional ownership represented as ERC1155 tokens with transferable units
+1. **As an admin**, I want to verify properties submitted by property owners after reviewing their credentials so that only legitimate properties are listed on the platform.
+   - **Acceptance Criteria**:
+     - Admins have access to review property applications.
+     - Verified properties are marked as active.
+     - Only admins can perform verification actions.
 
-✅ **Transparent Marketplace**  
-Trustless trading with built-in platform fees and secure fund handling
+2. **As an admin**, I want to manage access control within the system by adding or removing admins and setting permissions.
+   - **Acceptance Criteria**:
+     - Admins can manage other admins' roles.
+     - Permissions for certain actions are set and managed appropriately.
+     - The system enforces role-based access control using OpenZeppelin's `AccessControl`.
 
-✅ **Flexible Usage**  
-- Direct reservations by owners  
-- Secondary rental market for unused weeks
+## Reservation Holder
 
-✅ **Community Governance**  
-Owners influence property decisions through proposal voting system
+1. **As a user**, I want to search and find available reservation tokens on the market that match my travel plans.
+   - **Acceptance Criteria**:
+     - The platform provides search functionality for available reservation tokens.
+     - Users can filter tokens based on various attributes like location and dates.
 
-✅ **Maintenance Accountability**  
-Annual fee enforcement tied to reservation privileges
+2. **As a user**, I want to purchase a desired reservation token using ETH through ReservationSwap.
+   - **Acceptance Criteria**:
+     - The ReservationSwap contract allows buying tokens with ETH.
+     - Transactions are secure with correct fund transfers.
+     - Ownership of the token is transferred upon successful purchase.
 
-## System Roles
+3. **As a user who owns a reservation token**, I want to present this token as proof of my reservation when checking in at the property.
+   - **Acceptance Criteria**:
+     - Property owners recognize and validate the token as confirmation of reservation.
+     - A mechanism exists for verifying token ownership at check-in.
 
-| Role | Capabilities |
-|------|--------------|
-| **Admin** | Create properties, set fees, assign managers |
-| **Property Manager** | Block weeks, create improvement proposals |
-| **Owner** | Trade units, reserve/rent weeks, vote on proposals |
-| **Renter** | Book available weeks through rental marketplace |
-| **Voter** | Participate in governance decisions |
+4. **As a user who owns a reservation token**, I want to list it for sale or swap on ReservationSwap if I no longer need it.
+   - **Acceptance Criteria**:
+     - The ReservationSwap contract allows listing tokens for sale or swap with specified terms.
+     - Users can specify prices in ETH or desired tokens for swaps.
+     - Transactions are facilitated securely through smart contract logic.
 
-## Technology Stack
-- **Solidity 0.8.17** with strict security practices
-- **OpenZeppelin Contracts**: ERC1155, AccessControl, ReentrancyGuard
-- **Decentralized Architecture**: Fully on-chain logic with no central server
-- **IPFS Integration**: Property metadata stored via URI patterns
+## Trader/Swapper
 
-## Use Cases
-- 🏖️ Vacation property co-ownership
-- 🏢 Commercial space time-sharing
-- 🎓 University accommodation pools
-- 🌳 Shared vacation home management
+1. **As a user with a reservation token**, I want to list it for sale on ReservationSwap specifying the price in ETH so potential buyers can purchase it directly.
+   - **Acceptance Criteria**:
+     - The ReservationSwap contract supports listing tokens for sale with specified prices.
+     - Buyers can purchase listed tokens directly through the contract.
 
-Designed to bring transparency and liquidity to traditional timeshare models while empowering users through decentralized governance.
+2. **As a user with multiple assets**, I want to propose swaps where I offer one token in exchange for another specific token or combination of assets.
+   - **Acceptance Criteria**:
+     - The ReservationSwap contract allows proposing swaps between tokens or with ETH.
+     - Users can specify which assets they wish to exchange.
+     - Swap proposals are handled securely with both parties agreeing before transfer.
 
-## Timeshare System User Stories
+3. **As a user looking for specific reservation tokens**, I want an efficient way to search and find available tokens on ReservationSwap that meet my criteria.
+   - **Acceptance Criteria**:
+     - The platform provides robust search functionality within ReservationSwap.
+     - Users can filter tokens based on various attributes like location and dates.
 
-### Admin Role
-- As an **Admin**, I want to create new timeshare properties so that they can be managed and owned by users.
-- As an **Admin**, I want to update property details (name, location, fees) so that information remains accurate.
-- As an **Admin**, I want to mint initial ownership tokens for a property so that initial owners can participate in the system.
-- As an **Admin**, I want to set platform fees for marketplace transactions so that the platform generates revenue.
-- As an **Admin**, I want to assign Property Manager roles so that trusted parties can manage specific properties.
-- As an **Admin**, I want to configure maintenance fee collection addresses so that fees are routed correctly.
+4. **As any participant in ReservationSwap**, I expect all transactions to be secure and fair with no risk of fraud or loss of assets during trading.
+   - **Acceptance Criteria**:
+     - The smart contract ensures that both parties receive what they agreed upon.
+     - Funds and tokens are locked during transactions and released only upon successful completion.
 
----
+## General User
 
-### Property Manager Role
-- As a **Property Manager**, I want to block weeks for maintenance so that repairs or upgrades can be performed.
-- As a **Property Manager**, I want to unblock weeks so that reservations can resume after maintenance.
-- As a **Property Manager**, I want to create governance proposals for property improvements (e.g., new amenities) so that owners can vote on changes.
-- As a **Property Manager**, I want to ensure proposals meet minimum voting periods so that owners have time to participate.
+1. **As any user**, I want all transactions involving SmartStayToken and ReservationSwap contracts recorded on the blockchain for transparency and immutability.
+   - **Acceptance Criteria**:
+     - All actions like minting, transferring tokens are recorded on-chain.
+     - The blockchain provides an auditable trail of all activities ensuring transparency and trust.
 
----
-
-### Owner (Token Holder) Role
-- As an **Owner**, I want to sell my timeshare units on the marketplace so that I can exit my investment.
-- As an **Owner**, I want to buy additional units on the marketplace so that I can increase my ownership stake.
-- As an **Owner**, I want to reserve a specific week at the property so that I can use my timeshare.
-- As an **Owner**, I want to cancel a reservation (if not rented) so that my plans can remain flexible.
-- As an **Owner**, I want to list my reserved week for rent so that I can earn income from unused weeks.
-- As an **Owner**, I want to pay annual maintenance fees so that I maintain access to reservations and voting rights.
-- As an **Owner**, I want to vote on governance proposals so that I can influence property decisions.
-
----
-
-### Renter Role
-- As a **Renter**, I want to browse available weeks for rent so that I can find a suitable vacation period.
-- As a **Renter**, I want to rent a listed week so that I can stay at the property without ownership.
-- As a **Renter**, I want to ensure my rental payment is securely processed so that I receive confirmed access.
-
----
-
-### Buyer/Seller (Marketplace Participant) Role
-- As a **Seller**, I want to create listings for my units with custom prices so that I can maximize returns.
-- As a **Seller**, I want to update or cancel listings so that I can adapt to market conditions.
-- As a **Buyer**, I want to purchase units from listings so that I can acquire ownership in desired properties.
-- As a **Buyer**, I want to verify property details before purchasing so that I make informed decisions.
-
----
-
-### Voter (Governance Participant) Role
-- As a **Voter**, I want to cast votes on proposals so that my ownership stake influences outcomes.
-- As a **Voter**, I want to check proposal statuses (active/executed) so that I can participate before deadlines.
-- As a **Voter**, I want to ensure proposals meet quorum and majority rules so that decisions are legitimate.
-
-## Diagrams
-### Class Diagram
-![Class Diagram](/diagrams/class-diagram.png)
-### Reserving a Week
-![Class Diagram](/diagrams/ReservingaWeek.jpg)
-### Creating and Voting on a Proposal
-![Class Diagram](/diagrams/CreatingandVotingonaProposal.jpg)
-### Purchasing Units in Marketplace
-![Class Diagram](/diagrams/PurchasingUnitsinMarketplace.png)
-
-# Installation
-## Reguired
-**Hardhat**
-https://hardhat.org/hardhat-runner/docs/getting-started#installation
-
-## time-share-app
+2. **As any user new to blockchain technology**, I need clear instructions on how to set up my wallet and interact with the SmartStay platform effectively without confusion.
+   - **Acceptance Criteria**:
+     - The platform provides comprehensive documentation and step-by-step guides.
+     - User interfaces are designed intuitively with support for various wallet types ensuring ease of use.
