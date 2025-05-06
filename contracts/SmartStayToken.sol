@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "./NFTVault.sol";
 
 /**
  * @title SmartStayToken
@@ -28,19 +29,22 @@ contract SmartStayToken is ERC721, ERC721Enumerable, ERC721URIStorage, AccessCon
     uint16 public currentYear;
 
     mapping(uint256 => Property) public properties;
-    mapping(uint256 => address) public propertyOwners; // New mapping for property ownership
+    mapping(uint256 => address) public propertyOwners; 
     mapping(uint256 => uint256) public tokenToPropertyId;
     mapping(uint256 => uint16) public tokenToYear;
     mapping(uint256 => uint8) public tokenToWeekNumber;
     mapping(uint256 => mapping(uint16 => mapping(uint8 => uint256))) public propertyWeekToToken;
 
+    NFTVault public vault;
+
     event PropertyCreated(uint256 propertyId, string propertyName);
     event WeekMinted(uint256 tokenId, uint256 propertyId, uint16 year, uint8 weekNumber, address owner);
 
-    constructor(uint16 _currentYear) ERC721("SmartStayToken", "SST") {
+    constructor(uint16 _currentYear, address _vaultAddress) ERC721("SmartStayToken", "SST") {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ADMIN_ROLE, msg.sender);
         currentYear = _currentYear;
+        vault = NFTVault(_vaultAddress);
     }
     function createProperty(string memory propertyName) external returns (uint256) {
         uint256 propertyId = nextPropertyId++;
@@ -55,19 +59,23 @@ contract SmartStayToken is ERC721, ERC721Enumerable, ERC721URIStorage, AccessCon
     }
 
     // Mint an NFT for a specific week, restricted to the property owner
-    function mintWeek(uint256 propertyId, uint16 year, uint8 weekNumber) external {
+    function mintWeek(uint256 propertyId, uint16 year, uint8 weekNumber, address vaultAddress) external {
         require(properties[propertyId].active, "Property does not exist");
         require(propertyOwners[propertyId] == msg.sender, "Only property owner can mint");
         require(year >= currentYear, "Cannot mint for past year");
         require(weekNumber >= 1 && weekNumber <= 52, "Invalid week number");
         require(propertyWeekToToken[propertyId][year][weekNumber] == 0, "Week already minted");
+        require(vaultAddress != address(0), "Invalid vault address");
 
         uint256 tokenId = nextTokenId++;
-        _mint(msg.sender, tokenId); // Mint to the property owner
+        _mint(vaultAddress, tokenId); // Mint to the vault
         tokenToPropertyId[tokenId] = propertyId;
         tokenToYear[tokenId] = year;
         tokenToWeekNumber[tokenId] = weekNumber;
         propertyWeekToToken[propertyId][year][weekNumber] = tokenId;
+
+        // Initialize slot ownership in the vault
+        vault.initializeSlotOwnership(tokenId, msg.sender);
 
         emit WeekMinted(tokenId, propertyId, year, weekNumber, msg.sender);
     }
