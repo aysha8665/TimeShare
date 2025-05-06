@@ -40,12 +40,13 @@ contract SmartStayToken is ERC721, ERC721Enumerable, ERC721URIStorage, AccessCon
     event PropertyCreated(uint256 propertyId, string propertyName);
     event WeekMinted(uint256 tokenId, uint256 propertyId, uint16 year, uint8 weekNumber, address owner);
 
-    constructor(uint16 _currentYear, address _vaultAddress) ERC721("SmartStayToken", "SST") {
+    constructor(uint16 _currentYear) ERC721("SmartStayToken", "SST") {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ADMIN_ROLE, msg.sender);
         currentYear = _currentYear;
-        vault = NFTVault(_vaultAddress);
     }
+
+
     function createProperty(string memory propertyName) external returns (uint256) {
         uint256 propertyId = nextPropertyId++;
         properties[propertyId] = Property({name: propertyName, verified: false, active: true});
@@ -91,6 +92,10 @@ contract SmartStayToken is ERC721, ERC721Enumerable, ERC721URIStorage, AccessCon
     function setCurrentYear(uint16 year) external onlyRole(ADMIN_ROLE) {
         require(year >= currentYear, "Cannot set to past year");
         currentYear = year;
+    }
+
+    function SetVaultAddress(address _vaultAddress) external onlyRole(ADMIN_ROLE){
+        vault = NFTVault(_vaultAddress);
     }
 
     function isWeekAvailable(uint256 propertyId, uint16 year, uint8 weekNumber) external view returns (bool) {
