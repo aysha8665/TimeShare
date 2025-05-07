@@ -26,7 +26,7 @@ contract NFTVault is ReentrancyGuard{
     // Called after minting to initialize slot ownership
     function initializeSlotOwnership(uint256 tokenId, address initialOwner) external {
         require(smartStayToken.ownerOf(tokenId) == address(this), "NFT not in vault");
-        require(msg.sender == initialOwner, "Only property owner can initialize"); // Could be restricted further
+        require(msg.sender == address(smartStayToken), "Caller must be SmartStayToken");
         for (uint8 day = 0; day < 7; day++) {
             slotOwnership[tokenId][day] = initialOwner;
         }
