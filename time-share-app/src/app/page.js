@@ -5,265 +5,361 @@ import useMetaMask from './hooks/useMetaMask';
 import SmartStayToken from '../../../artifacts/contracts/SmartStayToken.sol/SmartStayToken.json';
 import ReservationSwap from '../../../artifacts/contracts/ReservationSwap.sol/ReservationSwap.json';
 
-const SMART_STAY_ADDRESS = "0xd893421aA2f04272cb8B2deAb6BBEa5Ad71FC6D7";
-const RESERVATION_SWAP_ADDRESS = "0x6A51922a144366061D7D4812B8fe3fC38B7b5fcC";
+const SMART_STAY_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+const RESERVATION_SWAP_ADDRESS = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9";
+const VAULT_ADDRESS = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("properties");
   const { provider, signer, account, connect, error, isConnecting } = useMetaMask();
   const [smartStayToken, setSmartStayToken] = useState(null);
-  const [smartStayTokenReadOnly, setSmartStayTokenReadOnly] = useState(null); // For read-only calls
+  const [smartStayTokenReadOnly, setSmartStayTokenReadOnly] = useState(null);
   const [reservationSwap, setReservationSwap] = useState(null);
-  const [reservationSwapReadOnly, setReservationSwapReadOnly] = useState(null); // For read-only calls
+  const [reservationSwapReadOnly, setReservationSwapReadOnly] = useState(null);
+  const [vaultReadOnly, setVaultReadOnly] = useState(null);
   const [properties, setProperties] = useState([]);
   const [reservations, setReservations] = useState([]);
   const [swapOffers, setSwapOffers] = useState([]);
+  
+  // Property creation form state
   const [newPropertyName, setNewPropertyName] = useState("");
+  const [newPropertyLocation, setNewPropertyLocation] = useState("");
+  const [newPropertyPrice, setNewPropertyPrice] = useState("");
+  const [newPropertyAmenities, setNewPropertyAmenities] = useState("");
+  const [newPropertyDescription, setNewPropertyDescription] = useState("");
+  
+  // Minting state
+  const [mintInputs, setMintInputs] = useState({});
+  
+  // Swap creation state
+  const [selectedSlot, setSelectedSlot] = useState("");
+  const [targetPropertyId, setTargetPropertyId] = useState("");
+  const [targetYear, setTargetYear] = useState("");
+  const [targetWeekNumber, setTargetWeekNumber] = useState("");
+  const [targetDay, setTargetDay] = useState("");
+  const [ethIncentive, setEthIncentive] = useState("");
+  const [offerType, setOfferType] = useState("SWAP");
+  
+  // UI state
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [mintInputs, setMintInputs] = useState({});
-  const [allReservations, setAllReservations] = useState([]);
 
-  // Initialize contracts
+  const vaultAbi = [
+    "function slotOwnership(uint256 tokenId, uint8 day) view returns (address)",
+    "function initializeSlotOwnership(uint256 tokenId, address initialOwner) external",
+    "function transferSlot(uint256 tokenId, uint8 day, address to) external",
+    "function swapSlots(uint256 tokenId1, uint8 day1, uint256 tokenId2, uint8 day2) external"
+  ];
+
+  const [operationLoading, setOperationLoading] = useState({
+    properties: false,
+    reservations: false,
+    swaps: false,
+    general: false
+  });
+
   useEffect(() => {
-    if (provider) {
-      // Read-only contracts (use provider)
-      const smartStayReadOnly = new ethers.Contract(SMART_STAY_ADDRESS, SmartStayToken.abi, provider);
-      const swapReadOnly = new ethers.Contract(RESERVATION_SWAP_ADDRESS, ReservationSwap.abi, provider);
-      setSmartStayTokenReadOnly(smartStayReadOnly);
-      setReservationSwapReadOnly(swapReadOnly);
-    }
-    if (signer) {
-      // Write-enabled contracts (use signer)
-      try {
-        const smartStay = new ethers.Contract(SMART_STAY_ADDRESS, SmartStayToken.abi, signer);
-        const swapContract = new ethers.Contract(RESERVATION_SWAP_ADDRESS, ReservationSwap.abi, signer);
-        setSmartStayToken(smartStay);
-        setReservationSwap(swapContract);
-      } catch (err) {
-        setErrorMessage("Failed to initialize contracts: " + err.message);
+    let smartStayReadOnly;
+    let swapReadOnly;
+    let vaultReadOnly;
+  
+    // Define an async helper function to handle asynchronous operations
+    const initializeContracts = async () => {
+      if (provider) {
+        try {
+          // Check if contract exists at the address
+          const code = await provider.getCode(SMART_STAY_ADDRESS);
+          console.log("Code at SmartStayToken address:", code);
+          if (code === "0x") {
+            console.error("No contract found at", SMART_STAY_ADDRESS);
+          } else {
+            console.log("Contract found at", SMART_STAY_ADDRESS);
+          }
+  
+          smartStayReadOnly = new ethers.Contract(
+            SMART_STAY_ADDRESS,
+            SmartStayToken.abi,
+            provider
+          );
+        } catch (err) {
+          console.error("Contract init error:", err);
+        }
+  
+        try {
+          swapReadOnly = new ethers.Contract(
+            RESERVATION_SWAP_ADDRESS,
+            ReservationSwap.abi,
+            provider
+          );
+        } catch (err) {
+          console.error("Contract init error:", err);
+        }
+  
+        try {
+          vaultReadOnly = new ethers.Contract(VAULT_ADDRESS, vaultAbi, provider);
+        } catch (err) {
+          console.error("Contract init error:", err);
+        }
+  
+        setSmartStayTokenReadOnly(smartStayReadOnly);
+        setReservationSwapReadOnly(swapReadOnly);
+        setVaultReadOnly(vaultReadOnly);
       }
-    } else {
-      setSmartStayToken(null);
-      setReservationSwap(null);
-    }
+  
+      if (signer) {
+        try {
+          const smartStay = new ethers.Contract(
+            SMART_STAY_ADDRESS,
+            SmartStayToken.abi,
+            signer
+          );
+          const swapContract = new ethers.Contract(
+            RESERVATION_SWAP_ADDRESS,
+            ReservationSwap.abi,
+            signer
+          );
+          setSmartStayToken(smartStay);
+          setReservationSwap(swapContract);
+        } catch (err) {
+          setErrorMessage("Failed to initialize contracts: " + err.message);
+        }
+      } else {
+        setSmartStayToken(null);
+        setReservationSwap(null);
+      }
+    };
+  
+    // Call the async function
+    initializeContracts();
   }, [provider, signer]);
 
-  // Fetch data when contracts and account are ready
-  // Ensure fetchReservations is called after fetchProperties to have property data available
   useEffect(() => {
-    if (smartStayTokenReadOnly && reservationSwapReadOnly && account) {
+    if (smartStayTokenReadOnly && reservationSwapReadOnly && vaultReadOnly && account) {
       const fetchData = async () => {
-        await fetchProperties(); // Fetch properties first for image data
+        await fetchProperties();
         await fetchReservations();
         await fetchSwapOffers();
-        await fetchAllReservations();
       };
       fetchData();
     } else if (!account) {
       setProperties([]);
       setReservations([]);
       setSwapOffers([]);
-      setAllReservations([]);
     }
-  }, [smartStayTokenReadOnly, reservationSwapReadOnly, account]);
+  }, [smartStayTokenReadOnly, reservationSwapReadOnly, vaultReadOnly, account]);
 
-  const fetchAllReservations = async () => {
+  const fetchProperties = async () => {
     if (!smartStayTokenReadOnly) return;
+    setOperationLoading(prev => ({...prev, properties: true}));
+    setErrorMessage("");
+    try {
+      const nextId = await smartStayTokenReadOnly.getNextPropertyId();
+      const nextIdNum = nextId ? Number(nextId) : 0;
+      if (!nextId || nextId === 0n) {
+        setProperties([]);
+        return;
+      }
+      const props = [];
+      for (let i = 1; i < nextIdNum; i++) {
+        const owner = await smartStayTokenReadOnly.propertyOwners(i); // Get owner
+        const prop = await smartStayTokenReadOnly.properties(i);
+        const imageUrl = `/images/property${i}.jpg`;
+        console.log("fetchProperties::pricePerWeek", prop.pricePerWeek.toString());
+        console.log("fetchProperties::parseUnits", ethers.formatUnits(prop.pricePerWeek.toString()));
+        props.push({ 
+          id: i, 
+          name: prop.name,
+          location: prop.location,
+          pricePerWeek: (prop.pricePerWeek ?ethers.formatUnits(prop.pricePerWeek.toString(), 18): "0"),
+          amenities: prop.amenities,
+          description: prop.description,
+          verified: prop.verified, 
+          active: prop.active, 
+          imageUrl ,
+          owner: owner.toLowerCase()
+        });
+      }
+      setProperties(props);
+    } catch (err) {
+      console.error("Error fetching properties:", err);
+      if (err.code === "BAD_DATA") {
+        setErrorMessage("Failed to fetch properties: Invalid data returned from contract. Check contract deployment.");
+      } else {
+        setErrorMessage("Failed to fetch properties: " + err.message);
+      }
+    } finally {
+      setOperationLoading(prev => ({...prev, properties: false}));
+    }
+  };
+  
+  const fetchReservations = async () => {
+    if (!vaultReadOnly || !smartStayTokenReadOnly || !account) return;
     setLoading(true);
     setErrorMessage("");
     try {
       const nextTokenId = await smartStayTokenReadOnly.getNextTokenId();
-      if (!nextTokenId) throw new Error("getNextTokenId returned invalid data");
-      const reservations = [];
-      for (let i = 1; i < nextTokenId; i++) {
-        try {
-          const owner = await smartStayTokenReadOnly.ownerOf(i);
-          const propertyId = await smartStayTokenReadOnly.tokenToPropertyId(i);
-          const year = await smartStayTokenReadOnly.tokenToYear(i);
-          const week = await smartStayTokenReadOnly.tokenToWeekNumber(i);
-          const property = properties.find((p) => p.id.toString() === propertyId.toString());
-          const propertyImageUrl = property ? property.imageUrl : "/images/default-property.jpg";
-          //const nftImageUrl = `/images/token${i}.jpg`; // Unique NFT image per tokenId
-          const nftImageUrl = `/images/token.jpg`; // Unique NFT image per tokenId
-          reservations.push({
-            tokenId: i.toString(),
-            propertyId: propertyId.toString(),
-            year: year.toString(),
-            week: week.toString(),
-            owner,
-            propertyImageUrl, // Property image
-            nftImageUrl,     // NFT-specific image
-          });
-        } catch (err) {
-          console.log(`Token ${i} does not exist or is invalid`);
+      const nextTokenIdNum = nextTokenId ? Number(nextTokenId) : 0;
+      if (!nextTokenId || nextTokenId === 0n) {
+        setReservations([]);
+        return;
+      }
+      const ownedSlots = [];
+      for (let tokenId = 1; tokenId < nextTokenIdNum; tokenId++) {
+        for (let day = 0; day < 7; day++) {
+          const owner = await vaultReadOnly.slotOwnership(tokenId, day);
+          if (owner?.toLowerCase() === account.toLowerCase())  {
+            const propertyId = await smartStayTokenReadOnly.tokenToPropertyId(tokenId);
+            const year = await smartStayTokenReadOnly.tokenToYear(tokenId);
+            const week = await smartStayTokenReadOnly.tokenToWeekNumber(tokenId);
+            const property = properties.find((p) => p.id.toString() === propertyId.toString());
+            const imageUrl = property ? property.imageUrl : "/images/default-property.jpg";
+            ownedSlots.push({
+              tokenId: tokenId.toString(),
+              day: day.toString(),
+              propertyId: propertyId.toString(),
+              year: year.toString(),
+              week: week.toString(),
+              imageUrl,
+            });
+          }
         }
       }
-      setAllReservations(reservations);
-    } catch (err) {
-      console.error("Error fetching all reservations:", err);
-      setErrorMessage("Failed to fetch all reservations: " + err.message);
-    }
-    setLoading(false);
-  };
-
-  const fetchProperties = async () => {
-    if (!smartStayTokenReadOnly) return;
-    setLoading(true);
-    setErrorMessage("");
-    console.log("Fetching properties...");
-    const timeout = setTimeout(() => {
-      setLoading(false);
-      setErrorMessage("Property fetch timed out");
-    }, 10000);
-    try {
-      console.log("Calling getNextPropertyId...");
-      const nextId = await smartStayTokenReadOnly.getNextPropertyId();
-      console.log("Next ID received:", nextId.toString());
-      if (!nextId) throw new Error("getNextPropertyId returned invalid data");
-      const props = [];
-      for (let i = 1; i < nextId; i++) {
-        console.log(`Fetching property ${i}...`);
-        const prop = await smartStayTokenReadOnly.properties(i);
-        // Add an image URL based on property ID (adjust path/naming as needed)
-        //const imageUrl = `/images/property${i}.jpg`; // Assumes images are named like property1.jpg, property2.jpg, etc.
-        const imageUrl = `/images/property${i}.jpg`; // Assumes images are named like property1.jpg, property2.jpg, etc.
-        props.push({ id: i, name: prop.name, verified: prop.verified, active: prop.active, imageUrl });
-      }
-      setProperties(props);
-      console.log("Properties fetched:", props);
-    } catch (err) {
-      console.error("Error fetching properties:", err);
-      setErrorMessage("Failed to fetch properties: " + err.message);
-    }
-    clearTimeout(timeout);
-    setLoading(false);
-    console.log("Fetch properties complete");
-  };
-
-  const fetchReservations = async () => {
-    if (!smartStayTokenReadOnly || !account) return;
-    setLoading(true);
-    setErrorMessage("");
-    try {
-      const balance = await smartStayTokenReadOnly.balanceOf(account);
-      if (balance === undefined) throw new Error("balanceOf returned invalid data");
-      const res = [];
-      for (let i = 0; i < balance; i++) {
-        const tokenId = await smartStayTokenReadOnly.tokenOfOwnerByIndex(account, i);
-        const propertyId = await smartStayTokenReadOnly.tokenToPropertyId(tokenId);
-        const year = await smartStayTokenReadOnly.tokenToYear(tokenId);
-        const week = await smartStayTokenReadOnly.tokenToWeekNumber(tokenId);
-        // Find the property to get its image
-        const property = properties.find((p) => p.id.toString() === propertyId.toString());
-        const imageUrl = property ? property.imageUrl : "/images/default-property.jpg";
-        res.push({
-          tokenId: tokenId.toString(),
-          propertyId: propertyId.toString(),
-          year: year.toString(),
-          week: week.toString(),
-          imageUrl, // Add image URL to reservation
-        });
-      }
-      setReservations(res);
+      setReservations(ownedSlots);
     } catch (err) {
       console.error("Error fetching reservations:", err);
       setErrorMessage("Failed to fetch reservations: " + err.message);
     }
     setLoading(false);
   };
-
-  const fetchSwapOffers = async () => {
-    // Step 1: Verify reservationSwapReadOnly
-    console.log("Step 1: Checking reservationSwapReadOnly:", reservationSwapReadOnly);
-    if (!reservationSwapReadOnly) {
-      console.log("Step 1: reservationSwapReadOnly is null or undefined, exiting.");
-      return;
-    }
   
+  const fetchSwapOffers = async () => {
+    if (!reservationSwapReadOnly) return;
     setLoading(true);
     setErrorMessage("");
-  
     try {
-      // Step 2: Fetch and log offerCount
-      const offerCount = await reservationSwapReadOnly.getNextSwapOfferId();
-      console.log("Step 2: offerCount:", offerCount.toString());
-      if (!offerCount) {
-        console.log("Step 2: offerCount is invalid (0 or undefined), throwing error.");
-        throw new Error("getNextSwapOfferId returned invalid data");
+      const nextOfferId = await reservationSwapReadOnly.getNextOfferId();
+      if (!nextOfferId || nextOfferId === 0n) {
+        setSwapOffers([]);
+        return;
       }
-  
       const offers = [];
-      // Step 3: Loop through offers and log each one
-      console.log("Step 3: Starting loop with offerCount:", offerCount.toString());
-      for (let i = 1; i < offerCount; i++) {
-        console.log("Step 3: Fetching swapOffers for ID:", i);
-        const offer = await reservationSwapReadOnly.swapOffers(i);
-        console.log("Step 3: Offer at ID", i, ":", offer);
-  
-        // Step 4: Check if offer is active
+      for (let i = 1; i < nextOfferId; i++) {
+        const offer = await reservationSwapReadOnly.offers(i);
         if (offer.isActive) {
-          console.log("Step 4: Offer", i, "is active:", offer);
-          const property = properties.find((p) => p.id.toString() === offer.targetPropertyId.toString());
-          const targetPropertyImageUrl = property ? property.imageUrl : "/images/default-property.jpg";
-          const nftImageUrl = `/images/token.jpg`; // Static for now
-  
+          const propertyId = await smartStayTokenReadOnly.tokenToPropertyId(offer.tokenId);
+          const property = properties.find((p) => p.id.toString() === propertyId.toString());
+          const offeredPropertyName = property ? property.name : "Unknown";
+          const targetProperty = offer.targetPropertyId === 0
+            ? "Any"
+            : properties.find((p) => p.id.toString() === offer.targetPropertyId.toString())?.name || "Unknown";
+          
           offers.push({
             offerId: i,
             tokenId: offer.tokenId.toString(),
-            targetPropertyId: offer.targetPropertyId.toString(),
-            targetYear: offer.targetYear.toString(),
-            targetWeekNumber: offer.targetWeekNumber.toString(),
-            ethPrice: ethers.formatEther(offer.ethPrice),
+            day: offer.day.toString(),
+            offerType: offer.offerType === 0 ? "SWAP" : offer.offerType === 1 ? "SALE" : "BUY",
+            offeredPropertyName,
+            targetProperty,
+            targetYear: offer.targetYear === 0 ? "Any" : offer.targetYear.toString(),
+            targetWeekNumber: offer.targetWeekNumber === 0 ? "Any" : offer.targetWeekNumber.toString(),
+            targetDay: offer.targetDay.toString(),
+            ethAmount: ethers.formatUnits(offer.ethAmount, "ether"),
             offerer: offer.offerer,
-            targetPropertyImageUrl,
-            nftImageUrl,
           });
-          console.log("Step 4: Added offer", i, "to offers array:", offers[offers.length - 1]);
-        } else {
-          console.log("Step 4: Offer", i, "is not active, skipping.");
         }
       }
-  
-      // Step 5: Log final offers array and update state
-      console.log("Step 5: Final offers array:", offers);
       setSwapOffers(offers);
-      console.log("Step 5: setSwapOffers called with:", offers);
-  
     } catch (err) {
-      // Step 6: Log any errors
-      console.error("Step 6: Error fetching swap offers:", err);
+      console.error("Error fetching swap offers:", err);
       setErrorMessage("Failed to fetch swap offers: " + err.message);
     }
-  
     setLoading(false);
-    console.log("Step 6: Loading set to false, function complete.");
   };
 
   const handleCreateProperty = async () => {
-    if (!smartStayToken) return;
-    setLoading(true);
-    setErrorMessage("");
-    console.log("Starting createProperty with name:", newPropertyName);
-    try {
-      const tx = await smartStayToken.createProperty(newPropertyName);
-      console.log("Transaction sent:", tx.hash);
-      await tx.wait();
-      console.log("Transaction confirmed");
-      setNewPropertyName("");
-      await fetchProperties();
-    } catch (err) {
-      console.error("Error creating property:", err);
-      if (err.code === 4001) {
-        setErrorMessage("Transaction rejected by user");
-      } else {
-        setErrorMessage("Failed to create property: " + err.message);
-      }
+    if (!smartStayToken) {
+      console.error("Contract not connected");
+      setErrorMessage("Please connect your wallet first");
+      return;
     }
-    setLoading(false);
+  
+    // Validate inputs
+    if (!newPropertyName || !newPropertyLocation || !newPropertyPrice) {
+      setErrorMessage("Name, Location and Price are required");
+      return;
+    }
+  
+    console.log("Creating property with:", {
+      name: newPropertyName,
+      location: newPropertyLocation,
+      price: newPropertyPrice
+    });
+  
+    setOperationLoading(prev => ({...prev, general: true}));
+    setErrorMessage("");
+    console.log("handleCreateProperty::newPropertyPrice", newPropertyPrice.toString());
+    console.log("handleCreateProperty::formatUnits", ethers.parseUnits(newPropertyPrice.toString(), 18));
+    try {
+      const tx = await smartStayToken.createProperty(
+        newPropertyName,
+        newPropertyLocation,
+        ethers.parseUnits(newPropertyPrice.toString(), 18),
+        newPropertyAmenities || "",
+        newPropertyDescription || "",
+      );
+  
+      console.log("TX hash:", tx.hash);
+      console.log("Waiting for confirmation...");
+  
+      const receipt = await tx.wait();
+      console.log("Confirmed in block:", receipt.blockNumber);
+  
+      if (receipt.status === 0) {
+        throw new Error("Transaction reverted");
+      }
+  
+      // Verify creation
+      const propertyCount = await smartStayToken.getNextPropertyId();
+      const newProperty = await smartStayToken.properties(propertyCount - 1n);
+      console.log("New property created:", {
+        id: propertyCount - 1n,
+        name: newProperty.name,
+        verified: newProperty.verified
+      });
+  
+      // Reset form
+      setNewPropertyName("");
+      setNewPropertyLocation("");
+      setNewPropertyPrice("");
+      setNewPropertyAmenities("");
+      setNewPropertyDescription("");
+  
+      // Refresh data
+      await fetchProperties();
+      setErrorMessage("Property created successfully!");
+  
+    } catch (err) {
+      console.error("Creation error:", err);
+      
+      let errorMsg = "Creation failed";
+      if (err.code === 4001) errorMsg = "User denied transaction";
+      else if (err.reason) errorMsg = `Contract error: ${err.reason}`;
+      else if (err.message.includes("revert")) {
+        errorMsg = err.message.split("revert")[1]?.trim() || "Contract reverted";
+      }
+  
+      setErrorMessage(errorMsg);
+    } finally {
+      setOperationLoading(prev => ({...prev, general: false}));
+    }
   };
 
   const handleMintWeek = async (propertyId, year, week) => {
+    const property = properties.find(p => p.id === propertyId);
+    if (!property || property.owner !== account.toLowerCase()) {
+      setErrorMessage("Only the property owner can mint weeks");
+      return;
+    }
     if (!smartStayToken) return;
     const yearNum = parseInt(year);
     const weekNum = parseInt(week);
@@ -274,123 +370,111 @@ export default function Home() {
     setLoading(true);
     setErrorMessage("");
     try {
-      const tx = await smartStayToken.mintWeek(propertyId, yearNum, weekNum);
+      const tx = await smartStayToken.mintWeek(propertyId, yearNum, weekNum, VAULT_ADDRESS);
       await tx.wait();
       await fetchReservations();
-      setMintInputs(prev => ({
-        ...prev,
-        [propertyId]: { year: "", week: "" }
-      }));
+      setMintInputs(prev => ({ ...prev, [propertyId]: { year: "", week: "" } }));
     } catch (err) {
       console.error("Error minting week:", err);
-      if (err.code === 4001) {
-        setErrorMessage("Transaction rejected by user");
-      } else {
-        setErrorMessage("Failed to mint week: " + err.message);
-      }
+      setErrorMessage(err.code === 4001 ? "Transaction rejected by user" : "Failed to mint week: " + err.message);
     }
     setLoading(false);
   };
 
-
-  const handleCreateSwap = async (tokenId, targetPropertyId, targetYear, targetWeek, ethPrice, nftContract, nftId) => {
-    console.log("Step 1: Starting handleCreateSwap with params:", { tokenId, targetPropertyId, targetYear, targetWeek, ethPrice, nftContract, nftId });
-    if (!reservationSwap || !signer) {
-      console.log("Step 1: reservationSwap or signer missing, exiting.");
-      return;
-    }
-  
-    setLoading(true);
-    setErrorMessage("");
-  
-    try {
-      // Step 2: Approve SmartStayToken NFT for ReservationSwap contract
-      const smartStay = new ethers.Contract(SMART_STAY_ADDRESS, SmartStayToken.abi, signer);
-      const approvedAddress = await smartStay.getApproved(tokenId);
-      const swapContractAddress = RESERVATION_SWAP_ADDRESS;
-  
-      if (approvedAddress.toLowerCase() !== swapContractAddress.toLowerCase()) {
-        console.log("Step 2: Approving SmartStayToken NFT", tokenId, "for swap contract");
-        const approveTx = await smartStay.approve(swapContractAddress, tokenId);
-        console.log("Step 2: Approval TX sent:", approveTx.hash);
-        await approveTx.wait();
-        console.log("Step 2: SmartStayToken NFT approved");
-      }
-  
-      // Step 3: Approve optional NFT if provided
-      if (nftContract && nftContract !== ethers.ZeroAddress && nftId) {
-        console.log("Step 3: Approving NFT with contract:", nftContract, "and ID:", nftId);
-        const nft = new ethers.Contract(nftContract, ["function approve(address to, uint256 tokenId) external", "function getApproved(uint256 tokenId) view returns (address)"], signer);
-        const approvedAddress = await nft.getApproved(nftId);
-        if (approvedAddress.toLowerCase() !== swapContractAddress.toLowerCase()) {
-          const approveTx = await nft.approve(swapContractAddress, nftId);
-          console.log("Step 3: Approval TX sent:", approveTx.hash);
-          await approveTx.wait();
-          console.log(`Step 3: NFT ${nftId} approved for swap contract`);
-        }
-      }
-  
-      // Step 4: Create the swap offer
-      const ethPriceWei = ethers.parseEther(ethPrice.toString());
-      console.log("Step 4: Creating swap offer with ETH price (wei):", ethPriceWei.toString());
-      const tx = await reservationSwap.createSwapOffer(
-        tokenId,
-        targetPropertyId,
-        targetYear,
-        targetWeek,
-        ethPriceWei,
-        nftContract || ethers.ZeroAddress,
-        nftId || 0,
-        { value: ethPriceWei }
-      );
-      console.log("Step 4: Transaction sent:", tx.hash);
-      await tx.wait();
-      console.log("Step 4: Transaction confirmed");
-  
-      // Step 5: Refresh swap offers
-      await fetchSwapOffers();
-    } catch (err) {
-      console.error("Error creating swap:", err);
-      if (err.code === 4001) {
-        setErrorMessage("Transaction rejected by user");
-      } else {
-        setErrorMessage("Failed to create swap: " + (err.reason || err.message));
-      }
-    }
-    setLoading(false);
-  };
-
-  const handleAcceptSwap = async (offerId, counterTokenId) => {
+  const handleCreateSwap = async (tokenId, day, targetPropertyId, targetYear, targetWeekNumber, targetDay, ethIncentiveWei) => {
     if (!reservationSwap) return;
     setLoading(true);
     setErrorMessage("");
-  
     try {
-      // Step 1: Approve counterTokenId for ReservationSwap contract
-      const smartStay = new ethers.Contract(SMART_STAY_ADDRESS, SmartStayToken.abi, signer);
-      const approvedAddress = await smartStay.getApproved(counterTokenId);
-      const swapContractAddress = RESERVATION_SWAP_ADDRESS;
-  
-      if (approvedAddress.toLowerCase() !== swapContractAddress.toLowerCase()) {
-        console.log("Step 1: Approving SmartStayToken NFT", counterTokenId, "for swap contract");
-        const approveTx = await smartStay.approve(swapContractAddress, counterTokenId);
-        console.log("Step 1: Approval TX sent:", approveTx.hash);
-        await approveTx.wait();
-        console.log("Step 1: SmartStayToken NFT approved");
+      let tx;
+      if (offerType === "SWAP") {
+        tx = await reservationSwap.createOffer(
+          0, // SWAP type
+          tokenId,
+          day,
+          targetPropertyId,
+          targetYear,
+          targetWeekNumber,
+          targetDay,
+          ethIncentiveWei,
+          { value: ethIncentiveWei }
+        );
+      } else if (offerType === "SALE") {
+        tx = await reservationSwap.createOffer(
+          1, // SALE type
+          tokenId,
+          day,
+          0, 0, 0, 0,
+          ethIncentiveWei
+        );
+      } else { // BUY
+        tx = await reservationSwap.createOffer(
+          2, // BUY type
+          tokenId,
+          day,
+          0, 0, 0, 0,
+          ethIncentiveWei,
+          { value: ethIncentiveWei }
+        );
       }
-  
-      // Step 2: Accept the swap offer
-      const tx = await reservationSwap.acceptSwapOffer(offerId, counterTokenId);
+      
       await tx.wait();
+      await fetchSwapOffers();
+      setSelectedSlot("");
+      setTargetPropertyId("");
+      setTargetYear("");
+      setTargetWeekNumber("");
+      setTargetDay("");
+      setEthIncentive("");
+    } catch (err) {
+      console.error("Error creating swap:", err);
+      setErrorMessage(err.code === 4001 ? "Transaction rejected by user" : "Failed to create swap: " + err.message);
+    }
+    setLoading(false);
+  };
+
+  const handleAcceptSwap = async (offerId) => {
+    if (!reservationSwap) return;
+    setLoading(true);
+    setErrorMessage("");
+    try {
+      const offer = swapOffers.find((o) => o.offerId === offerId);
+      if (!offer) {
+        setErrorMessage("Offer not found");
+        setLoading(false);
+        return;
+      }
+
+      if (offer.offerType === "SWAP") {
+        const matchingSlot = reservations.find((slot) => {
+          const propertyMatch = offer.targetProperty === "Any" || slot.propertyId === offer.targetPropertyId;
+          const yearMatch = offer.targetYear === "Any" || slot.year === offer.targetYear;
+          const weekMatch = offer.targetWeekNumber === "Any" || slot.week === offer.targetWeekNumber;
+          const dayMatch = slot.day === offer.targetDay;
+          return propertyMatch && yearMatch && weekMatch && dayMatch;
+        });
+
+        if (!matchingSlot) {
+          setErrorMessage("No matching slot found");
+          setLoading(false);
+          return;
+        }
+
+        const tx = await reservationSwap.acceptSwapOffer(offerId, matchingSlot.tokenId, matchingSlot.day);
+        await tx.wait();
+      } else if (offer.offerType === "SALE") {
+        const tx = await reservationSwap.acceptSaleOffer(offerId, { value: ethers.parseUnits(offer.ethAmount, "ether")});
+        await tx.wait();
+      } else { // BUY
+        const tx = await reservationSwap.acceptBuyOffer(offerId);
+        await tx.wait();
+      }
+
       await fetchSwapOffers();
       await fetchReservations();
     } catch (err) {
       console.error("Error accepting swap:", err);
-      if (err.code === 4001) {
-        setErrorMessage("Transaction rejected by user");
-      } else {
-        setErrorMessage("Failed to accept swap: " + err.message);
-      }
+      setErrorMessage(err.code === 4001 ? "Transaction rejected by user" : "Failed to accept swap: " + err.message);
     }
     setLoading(false);
   };
@@ -400,35 +484,12 @@ export default function Home() {
     setLoading(true);
     setErrorMessage("");
     try {
-      const tx = await reservationSwap.cancelSwapOffer(offerId);
+      const tx = await reservationSwap.cancelOffer(offerId);
       await tx.wait();
       await fetchSwapOffers();
     } catch (err) {
       console.error("Error canceling swap:", err);
-      if (err.code === 4001) {
-        setErrorMessage("Transaction rejected by user");
-      } else {
-        setErrorMessage("Failed to cancel swap: " + err.message);
-      }
-    }
-    setLoading(false);
-  };
-  
-  const handleRejectSwap = async (offerId) => {
-    if (!reservationSwap) return;
-    setLoading(true);
-    setErrorMessage("");
-    try {
-      const tx = await reservationSwap.rejectSwapOffer(offerId);
-      await tx.wait();
-      await fetchSwapOffers();
-    } catch (err) {
-      console.error("Error rejecting swap:", err);
-      if (err.code === 4001) {
-        setErrorMessage("Transaction rejected by user");
-      } else {
-        setErrorMessage("Failed to reject swap: " + err.message);
-      }
+      setErrorMessage(err.code === 4001 ? "Transaction rejected by user" : "Failed to cancel swap: " + err.message);
     }
     setLoading(false);
   };
@@ -439,21 +500,25 @@ export default function Home() {
     setErrorMessage("");
     try {
       const tx = await smartStayToken.verifyProperty(propertyId);
-      console.log("Transaction sent:", tx.hash);
       await tx.wait();
-      console.log("Transaction confirmed");
       await fetchProperties();
     } catch (err) {
       console.error("Error verifying property:", err);
-      if (err.code === 4001) {
-        setErrorMessage("Transaction rejected by user");
-      } else if (err.message.includes("AccessControl")) {
-        setErrorMessage("Only admins can verify properties");
-      } else {
-        setErrorMessage("Failed to verify property: " + err.message);
-      }
+      setErrorMessage(err.code === 4001 ? "Transaction rejected by user" : "Failed to verify property: " + err.message);
     }
     setLoading(false);
+  };
+
+  const hasMatchingSlot = (offer) => {
+    if (offer.offerType !== "SWAP") return false;
+    
+    return reservations.some((slot) => {
+      const propertyMatch = offer.targetProperty === "Any" || slot.propertyId === offer.targetPropertyId;
+      const yearMatch = offer.targetYear === "Any" || slot.year === offer.targetYear;
+      const weekMatch = offer.targetWeekNumber === "Any" || slot.week === offer.targetWeekNumber;
+      const dayMatch = slot.day === offer.targetDay;
+      return propertyMatch && yearMatch && weekMatch && dayMatch;
+    });
   };
 
   const disconnect = () => {
@@ -463,7 +528,6 @@ export default function Home() {
     setProperties([]);
     setReservations([]);
     setSwapOffers([]);
-    setAllReservations([]);
     setErrorMessage("Disconnected. Please reconnect to MetaMask.");
   };
 
@@ -494,16 +558,7 @@ export default function Home() {
           <p>Connected: {account.slice(0, 6)}...{account.slice(-4)}</p>
           <div className="mt-2">
             <button
-              onClick={() => {
-                window.ethereum.request({ method: "wallet_requestPermissions", params: [{ eth_accounts: {} }] })
-                  .catch((err) => {
-                    if (err.code === 4001) {
-                      setErrorMessage("User rejected account switch");
-                    } else {
-                      setErrorMessage("Error switching account: " + err.message);
-                    }
-                  });
-              }}
+              onClick={() => window.ethereum.request({ method: "wallet_requestPermissions", params: [{ eth_accounts: {} }] })}
               className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 mr-2"
             >
               Switch Account
@@ -519,107 +574,149 @@ export default function Home() {
         {errorMessage && <p className="text-red-500 text-center mb-4">{errorMessage}</p>}
 
         <div className="flex justify-center mb-8">
-          <button
-            className={`px-4 py-2 ${activeTab === "properties" ? "bg-blue-500 text-white" : "bg-gray-200"}`}
-            onClick={() => setActiveTab("properties")}
-          >
-            Properties
-          </button>
-          <button
-            className={`px-4 py-2 ${activeTab === "reservations" ? "bg-blue-500 text-white" : "bg-gray-200"}`}
-            onClick={() => setActiveTab("reservations")}
-          >
-            My Reservations
-          </button>
-          <button
-            className={`px-4 py-2 ${activeTab === "swap" ? "bg-blue-500 text-white" : "bg-gray-200"}`}
-            onClick={() => setActiveTab("swap")}
-          >
-            Swap Market
-          </button>
-          <button
-            className={`px-4 py-2 ${activeTab === "admin" ? "bg-blue-500 text-white" : "bg-gray-200"}`}
-            onClick={() => setActiveTab("admin")}
-          >
-            Admin
-          </button>
+          <button className={`px-4 py-2 ${activeTab === "properties" ? "bg-blue-500 text-white" : "bg-gray-200"}`} onClick={() => setActiveTab("properties")}>Properties</button>
+          <button className={`px-4 py-2 ${activeTab === "reservations" ? "bg-blue-500 text-white" : "bg-gray-200"}`} onClick={() => setActiveTab("reservations")}>My Reservations</button>
+          <button className={`px-4 py-2 ${activeTab === "swap" ? "bg-blue-500 text-white" : "bg-gray-200"}`} onClick={() => setActiveTab("swap")}>Swap Market</button>
+          <button className={`px-4 py-2 ${activeTab === "admin" ? "bg-blue-500 text-white" : "bg-gray-200"}`} onClick={() => setActiveTab("admin")}>Admin</button>
         </div>
 
-        {loading && <p className="text-center">Loading...</p>}
+        
+        {loading ? (
+          <div className="fixed top-4 right-4 bg-blue-500 text-white p-4 rounded-lg shadow-lg">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              <span>Loading...</span>
+            </div>
+          </div>
+        ) : (
+          <div>
+            {activeTab === "properties" && properties.length === 0 && (
+              <p className="text-center py-4">No properties found</p>
+            )}
+            {activeTab === "reservations" && reservations.length === 0 && (
+              <p className="text-center py-4">No reservations found</p>
+            )}
+            {activeTab === "swap" && swapOffers.length === 0 && (
+              <p className="text-center py-4">No swap offers available</p>
+            )}
+
+            {/* Rest of your tab content */}
+            {activeTab === "properties" && (
+              <div>{/* Properties content */}</div>
+            )}
+            {activeTab === "reservations" && (
+              <div>{/* Reservations content */}</div>
+            )}
+            {activeTab === "swap" && (
+              <div>{/* Swap market content */}</div>
+            )}
+          </div>
+        )}
+
 
         {activeTab === "properties" && (
           <div>
             <h2 className="text-2xl font-semibold mb-4">Properties</h2>
-            <div className="mb-4">
-              <input
-                type="text"
-                value={newPropertyName}
-                onChange={(e) => setNewPropertyName(e.target.value)}
-                placeholder="New Property Name"
-                className="border p-2 mr-2"
-              />
+            <div className="mb-4 border p-4 rounded">
+              <h3 className="text-lg font-medium mb-2">Create New Property</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  type="text"
+                  value={newPropertyName}
+                  onChange={(e) => setNewPropertyName(e.target.value)}
+                  placeholder="Property Name"
+                  className="border p-2"
+                />
+                <input
+                  type="text"
+                  value={newPropertyLocation}
+                  onChange={(e) => setNewPropertyLocation(e.target.value)}
+                  placeholder="Location"
+                  className="border p-2"
+                />
+                <input
+                  type="number"
+                  value={newPropertyPrice}
+                  onChange={(e) => setNewPropertyPrice(e.target.value)}
+                  placeholder="Price per week (ETH)" 
+                  className="border p-2"
+                />
+                <input
+                  type="text"
+                  value={newPropertyAmenities}
+                  onChange={(e) => setNewPropertyAmenities(e.target.value)}
+                  placeholder="Amenities (comma separated)"
+                  className="border p-2"
+                />
+                <textarea
+                  value={newPropertyDescription}
+                  onChange={(e) => setNewPropertyDescription(e.target.value)}
+                  placeholder="Description"
+                  className="border p-2 md:col-span-2"
+                  rows={3}
+                />
+              </div>
               <button
-                onClick={handleCreateProperty}
-                disabled={loading}
-                className="bg-green-500 text-white px-4 py-2 rounded"
-              >
-                Create Property
-              </button>
+              onClick={handleCreateProperty}
+              disabled={operationLoading.general || !newPropertyName || !newPropertyLocation || !newPropertyPrice}
+              className="bg-green-500 text-white px-4 py-2 rounded mt-2 disabled:bg-gray-400"
+            >
+              {operationLoading.general ? "Creating..." : "Create Property"}
+            </button>
             </div>
             {properties.map((prop) => {
               const mintYear = mintInputs[prop.id]?.year || "";
               const mintWeek = mintInputs[prop.id]?.week || "";
-              
               return (
-                <div key={prop.id} className="border p-4 mb-2 flex items-start">
-                  {/* Add image display */}
-                  <img
-                    src={prop.imageUrl}
-                    alt={prop.name}
-                    className="w-24 h-24 object-cover mr-4 rounded"
-                    onError={(e) => {
-                      e.target.src = "/images/default-property.jpg"; // Fallback image if the specific one doesn't exist
-                    }}
-                  />
-                  <div className="flex-1">
-                    <p className="font-semibold">{prop.name} (ID: {prop.id})</p>
-                    <p>Verified: {prop.verified.toString()}</p>
-                    <div className="mt-2 flex gap-2">
-                      <input
-                        type="number"
-                        value={mintYear}
-                        onChange={(e) =>
-                          setMintInputs((prev) => ({
-                            ...prev,
-                            [prop.id]: { ...prev[prop.id], year: e.target.value },
-                          }))
-                        }
-                        placeholder="Year (e.g., 2025)"
-                        className="border p-2 w-32"
-                        min="2025"
-                      />
-                      <input
-                        type="number"
-                        value={mintWeek}
-                        onChange={(e) =>
-                          setMintInputs((prev) => ({
-                            ...prev,
-                            [prop.id]: { ...prev[prop.id], week: e.target.value },
-                          }))
-                        }
-                        placeholder="Week (1-52)"
-                        className="border p-2 w-24"
-                        min="1"
-                        max="52"
-                      />
-                      <button
-                        onClick={() => handleMintWeek(prop.id, mintYear, mintWeek)}
-                        disabled={loading || !mintYear || !mintWeek}
-                        className="bg-blue-500 text-white px-4 py-2 rounded disabled:bg-gray-400"
-                      >
-                        Mint Week
-                      </button>
+                <div key={prop.id} className="border p-4 mb-4 rounded">
+                  <div className="flex flex-col md:flex-row gap-4">
+                    <img
+                      src={prop.imageUrl}
+                      alt={prop.name}
+                      className="w-full md:w-48 h-48 object-cover rounded"
+                      onError={(e) => e.target.src = "/images/default-property.jpg"}
+                    />
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold">{prop.name} (ID: {prop.id})</h3>
+                      <p className="text-gray-600">{prop.location}</p>
+                      <p className="mt-2"><strong>Price:</strong> {prop.pricePerWeek} ETH/week</p>
+                      <p><strong>Amenities:</strong> {prop.amenities}</p>
+                      <p className="mt-2">{prop.description}</p>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <span className={`px-2 py-1 rounded ${prop.verified ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}>
+                          {prop.verified ? "Verified" : "Unverified"}
+                        </span>
+                        <span className={`px-2 py-1 rounded ${prop.active ? "bg-blue-100 text-blue-800" : "bg-red-100 text-red-800"}`}>
+                          {prop.active ? "Active" : "Inactive"}
+                        </span>
+                      </div>
                     </div>
+                  </div>
+                  <div className="mt-4 flex flex-col md:flex-row gap-2">
+                    <input
+                      type="number"
+                      value={mintYear}
+                      onChange={(e) => setMintInputs((prev) => ({ ...prev, [prop.id]: { ...prev[prop.id], year: e.target.value } }))}
+                      placeholder="Year (e.g., 2025)"
+                      className="border p-2 flex-1"
+                      min="2025"
+                    />
+                    <input
+                      type="number"
+                      value={mintWeek}
+                      onChange={(e) => setMintInputs((prev) => ({ ...prev, [prop.id]: { ...prev[prop.id], week: e.target.value } }))}
+                      placeholder="Week (1-52)"
+                      className="border p-2 flex-1"
+                      min="1"
+                      max="52"
+                    />
+                    <button
+                      onClick={() => handleMintWeek(prop.id, mintYear, mintWeek)}
+                      disabled={loading || !mintYear || !mintWeek}
+                      className="bg-blue-500 text-white px-4 py-2 rounded disabled:bg-gray-400"
+                    >
+                      Mint Week
+                    </button>
                   </div>
                 </div>
               );
@@ -627,226 +724,298 @@ export default function Home() {
           </div>
         )}
 
-{activeTab === "reservations" && (
+        {activeTab === "reservations" && (
           <div>
             <h2 className="text-2xl font-semibold mb-4">My Reservations</h2>
             {reservations.length === 0 ? (
-              <p>You have no reservations.</p>
+              <p className="text-center text-gray-500">You have no reservations.</p>
             ) : (
-              reservations.map((res) => (
-                <div key={res.tokenId} className="border p-4 mb-2 flex items-start">
-                  {/* Add image display */}
-                  <img
-                    src={res.imageUrl}
-                    alt={`Reservation ${res.tokenId}`}
-                    className="w-24 h-24 object-cover mr-4 rounded"
-                    onError={(e) => {
-                      e.target.src = "/images/default-property.jpg"; // Fallback image
-                    }}
-                  />
-                  <div className="flex-1">
-                    <p><strong>Token ID:</strong> {res.tokenId}</p>
-                    <p><strong>Property ID:</strong> {res.propertyId}</p>
-                    <p><strong>Year:</strong> {res.year}</p>
-                    <p><strong>Week:</strong> {res.week}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {reservations.map((res) => (
+                  <div key={`${res.tokenId}-${res.day}`} className="border p-4 rounded">
+                    <div className="flex gap-4">
+                      <img
+                        src={res.imageUrl}
+                        alt={`Reservation ${res.tokenId} Day ${res.day}`}
+                        className="w-24 h-24 object-cover rounded"
+                        onError={(e) => e.target.src = "/images/default-property.jpg"}
+                      />
+                      <div>
+                        <p><strong>Property ID:</strong> {res.propertyId}</p>
+                        <p><strong>Token ID:</strong> {res.tokenId}</p>
+                        <p><strong>Day:</strong> {res.day}</p>
+                        <p><strong>Year:</strong> {res.year}</p>
+                        <p><strong>Week:</strong> {res.week}</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         )}
 
-{activeTab === "swap" && (
-  <div>
-    <h2 className="text-2xl font-semibold mb-4">Swap Market</h2>
+        {activeTab === "swap" && (
+          <div>
+            <h2 className="text-2xl font-semibold mb-4">Swap Market</h2>
+            
+            <div className="mb-6 border p-4 rounded">
+              <h3 className="text-xl font-medium mb-2">Create New Offer</h3>
+              <div className="mb-4">
+                <label className="block mb-1">Offer Type:</label>
+                <select
+                  value={offerType}
+                  onChange={(e) => setOfferType(e.target.value)}
+                  className="border p-2 w-full rounded"
+                >
+                  <option value="SWAP">Swap Offer</option>
+                  <option value="SALE">Sell Slot</option>
+                  <option value="BUY">Buy Slot</option>
+                </select>
+              </div>
 
-    {/* All Available NFTs */}
-    <div className="mb-6">
-      <h3 className="text-xl font-medium mb-2">All Available NFTs</h3>
-      {allReservations.length === 0 ? (
-        <p>No reservations available in the market.</p>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {allReservations.map((nft) => (
-            <div key={nft.tokenId} className="border p-4 rounded-lg">
-              <div className="flex items-start mb-2">
-                <img
-                  src={nft.nftImageUrl}
-                  alt={`NFT ${nft.tokenId}`}
-                  className="w-16 преимущества h-16 object-cover mr-2 rounded"
-                  onError={(e) => (e.target.src = "/images/default-nft.jpg")}
-                />
-                <img
-                  src={nft.propertyImageUrl}
-                  alt={`Property ${nft.propertyId}`}
-                  className="w-16 h-16 object-cover mr-2 rounded"
-                  onError={(e) => (e.target.src = "/images/default-property.jpg")}
+              {offerType === "SWAP" && (
+                <>
+                  <div className="mb-4">
+                    <label className="block mb-1">Select Slot to Offer:</label>
+                    <select
+                      value={selectedSlot}
+                      onChange={(e) => setSelectedSlot(e.target.value)}
+                      className="border p-2 w-full rounded"
+                    >
+                      <option value="">Select a slot</option>
+                      {reservations.map((slot) => (
+                        <option key={`${slot.tokenId}-${slot.day}`} value={`${slot.tokenId}-${slot.day}`}>
+                          Token {slot.tokenId}, Day {slot.day}, Property {slot.propertyId}, Year {slot.year}, Week {slot.week}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block mb-1">Target Property ID (0 for any):</label>
+                      <input
+                        type="number"
+                        value={targetPropertyId}
+                        onChange={(e) => setTargetPropertyId(e.target.value)}
+                        min="0"
+                        className="border p-2 w-full rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block mb-1">Target Year (0 for any):</label>
+                      <input
+                        type="number"
+                        value={targetYear}
+                        onChange={(e) => setTargetYear(e.target.value)}
+                        min="0"
+                        className="border p-2 w-full rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block mb-1">Target Week (0 for any):</label>
+                      <input
+                        type="number"
+                        value={targetWeekNumber}
+                        onChange={(e) => setTargetWeekNumber(e.target.value)}
+                        min="0"
+                        max="52"
+                        className="border p-2 w-full rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block mb-1">Target Day (0-6):</label>
+                      <input
+                        type="number"
+                        value={targetDay}
+                        onChange={(e) => setTargetDay(e.target.value)}
+                        min="0"
+                        max="6"
+                        className="border p-2 w-full rounded"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {offerType === "SALE" && (
+                <div className="mb-4">
+                  <label className="block mb-1">Select Slot to Sell:</label>
+                  <select
+                    value={selectedSlot}
+                    onChange={(e) => setSelectedSlot(e.target.value)}
+                    className="border p-2 w-full rounded"
+                  >
+                    <option value="">Select a slot</option>
+                    {reservations.map((slot) => (
+                      <option key={`${slot.tokenId}-${slot.day}`} value={`${slot.tokenId}-${slot.day}`}>
+                        Token {slot.tokenId}, Day {slot.day}, Property {slot.propertyId}, Year {slot.year}, Week {slot.week}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {offerType === "BUY" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block mb-1">Target Token ID:</label>
+                    <input
+                      type="number"
+                      value={targetPropertyId}
+                      onChange={(e) => setTargetPropertyId(e.target.value)}
+                      min="1"
+                      className="border p-2 w-full rounded"
+                    />
+                  </div>
+                  <div>
+                    <label className="block mb-1">Target Day (0-6):</label>
+                    <input
+                      type="number"
+                      value={targetDay}
+                      onChange={(e) => setTargetDay(e.target.value)}
+                      min="0"
+                      max="6"
+                      className="border p-2 w-full rounded"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="mb-4">
+                <label className="block mb-1">ETH {offerType === "SALE" ? "Price" : "Incentive"}:</label>
+                <input
+                  type="number"
+                  value={ethIncentive}
+                  onChange={(e) => setEthIncentive(e.target.value)}
+                  step="0.01"
+                  min="0"
+                  className="border p-2 w-full rounded"
                 />
               </div>
-              <p><strong>Token ID:</strong> {nft.tokenId}</p>
-              <p><strong>Property ID:</strong> {nft.propertyId}</p>
-              <p><strong>Year:</strong> {nft.year}</p>
-              <p><strong>Week:</strong> {nft.week}</p>
-              <p><strong>Owner:</strong> {nft.owner.slice(0, 6)}...{nft.owner.slice(-4)}</p>
-              {nft.owner.toLowerCase() === account.toLowerCase() ? (
-                <p className="text-gray-500 mt-2">You own this NFT</p>
+
+              <button
+                onClick={() => {
+                  if (!selectedSlot && offerType !== "BUY") {
+                    setErrorMessage("Please select a slot");
+                    return;
+                  }
+                  const [tokenId, day] = selectedSlot.split("-");
+                  const ethIncentiveWei = ethers.parseUnits(ethIncentive || "0", "ether");
+                  handleCreateSwap(
+                    tokenId || targetPropertyId,
+                    day || targetDay,
+                    targetPropertyId || "0",
+                    targetYear || "0",
+                    targetWeekNumber || "0",
+                    targetDay,
+                    ethIncentiveWei
+                  );
+                }}
+                disabled={loading}
+                className="bg-purple-500 text-white px-4 py-2 rounded w-full disabled:bg-gray-400"
+              >
+                Create {offerType === "SWAP" ? "Swap" : offerType === "SALE" ? "Sell" : "Buy"} Offer
+              </button>
+            </div>
+
+            <div>
+              <h3 className="text-xl font-medium mb-2">Active Offers</h3>
+              {swapOffers.length === 0 ? (
+                <p className="text-center text-gray-500">No active offers available.</p>
               ) : (
-                <div className="mt-2 flex flex-col gap-2">
-                  <input
-                    type="number"
-                    placeholder="ETH Price (optional)"
-                    step="0.01"
-                    className="border p-2 w-full"
-                    min="0"
-                    data-token-id={nft.tokenId}
-                  />
-                  <input
-                    type="text"
-                    placeholder="NFT Contract (optional)"
-                    className="border p-2 w-full"
-                    data-token-id={nft.tokenId}
-                  />
-                  <input
-                    type="number"
-                    placeholder="NFT ID (optional)"
-                    className="border p-2 w-full"
-                    min="0"
-                    data-token-id={nft.tokenId}
-                  />
-                  <button
-                    onClick={(e) => {
-                      const ethPriceInput = e.target.previousSibling.previousSibling.previousSibling.value || "0";
-                      const nftContractInput = e.target.previousSibling.previousSibling.value || ethers.ZeroAddress;
-                      const nftIdInput = e.target.previousSibling.value || "0";
-                      const ownedNft = reservations[0];
-                      if (!ownedNft) {
-                        setErrorMessage("You need to own an NFT to create a swap offer");
-                        return;
-                      }
-                      handleCreateSwap(
-                        ownedNft.tokenId,
-                        nft.propertyId,
-                        nft.year,
-                        nft.week,
-                        ethPriceInput,
-                        nftContractInput,
-                        nftIdInput
-                      );
-                    }}
-                    disabled={loading || reservations.length === 0}
-                    className="bg-purple-500 text-white px-4 py-2 rounded disabled:bg-gray-400"
-                  >
-                    Create Swap Offer
-                  </button>
+                <div className="grid grid-cols-1 gap-4">
+                  {swapOffers.map((offer) => (
+                    <div key={offer.offerId} className="border p-4 rounded">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-semibold">Offer #{offer.offerId} ({offer.offerType})</p>
+                          <p className="text-sm text-gray-600">From: {offer.offerer.slice(0, 6)}...{offer.offerer.slice(-4)}</p>
+                        </div>
+                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
+                          {offer.ethAmount} ETH
+                        </span>
+                      </div>
+
+                      <div className="mt-2">
+                        {offer.offerType === "SWAP" && (
+                          <>
+                            <p><strong>Offering:</strong> Token {offer.tokenId}, Day {offer.day} ({offer.offeredPropertyName})</p>
+                            <p><strong>Wants:</strong> Property {offer.targetProperty}, Year {offer.targetYear}, Week {offer.targetWeekNumber}, Day {offer.targetDay}</p>
+                          </>
+                        )}
+                        {offer.offerType === "SALE" && (
+                          <p><strong>Selling:</strong> Token {offer.tokenId}, Day {offer.day} ({offer.offeredPropertyName})</p>
+                        )}
+                        {offer.offerType === "BUY" && (
+                          <p><strong>Want to Buy:</strong> Token {offer.tokenId}, Day {offer.day}</p>
+                        )}
+                      </div>
+
+                      <div className="mt-4 flex gap-2">
+                        {offer.offerer.toLowerCase() === account.toLowerCase() ? (
+                          <button
+                            onClick={() => handleCancelSwap(offer.offerId)}
+                            disabled={loading}
+                            className="bg-red-500 text-white px-4 py-2 rounded flex-1 disabled:bg-gray-400"
+                          >
+                            Cancel Offer
+                          </button>
+                        ) : (
+                          (offer.offerType === "SWAP" && hasMatchingSlot(offer)) || 
+                          (offer.offerType === "SALE") || 
+                          (offer.offerType === "BUY" && 
+                            reservations.some(r => r.tokenId === offer.tokenId && r.day === offer.day))
+                        ) && (
+                          <button
+                            onClick={() => handleAcceptSwap(offer.offerId)}
+                            disabled={loading}
+                            className="bg-green-500 text-white px-4 py-2 rounded flex-1 disabled:bg-gray-400"
+                          >
+                            {offer.offerType === "SWAP" ? "Accept Swap" : 
+                             offer.offerType === "SALE" ? "Buy Slot" : "Sell Slot"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
-          ))}
-        </div>
-      )}
-    </div>
-
-    {/* Existing Swap Offers */}
-    <div>
-      <h3 className="text-xl font-medium mb-2">Active Swap Offers</h3>
-      {swapOffers.length === 0 ? (
-        <p>No active swap offers available.</p>
-      ) : (
-        swapOffers.map((offer) => {
-          // Check if the user has a matching reservation for Accept/Reject
-          const matchingReservation = reservations.find(
-            (res) =>
-              (offer.targetPropertyId === "0" || res.propertyId === offer.targetPropertyId) &&
-              (offer.targetYear === "0" || res.year === offer.targetYear) &&
-              (offer.targetWeekNumber === "0" || res.week === offer.targetWeekNumber)
-          );
-
-          return (
-            <div key={offer.offerId} className="border p-4 mb-2">
-              <div className="flex items-start mb-2">
-                <img
-                  src={offer.nftImageUrl}
-                  alt={`NFT ${offer.tokenId}`}
-                  className="w-16 h-16 object-cover mr-2 rounded"
-                  onError={(e) => (e.target.src = "/images/default-nft.jpg")}
-                />
-                <img
-                  src={offer.targetPropertyImageUrl}
-                  alt={`Target Property ${offer.targetPropertyId}`}
-                  className="w-16 h-16 object-cover mr-2 rounded"
-                  onError={(e) => (e.target.src = "/images/default-property.jpg")}
-                />
-              </div>
-              <p><strong>Offer ID:</strong> {offer.offerId}</p>
-              <p><strong>Token ID:</strong> {offer.tokenId}</p>
-              <p><strong>Target Property ID:</strong> {offer.targetPropertyId || "Any"}</p>
-              <p><strong>Target Year:</strong> {offer.targetYear || "Any"}</p>
-              <p><strong>Target Week:</strong> {offer.targetWeekNumber || "Any"}</p>
-              <p><strong>ETH Price:</strong> {offer.ethPrice} ETH</p>
-              <p><strong>Offerer:</strong> {offer.offerer.slice(0, 6)}...{offer.offerer.slice(-4)}</p>
-
-              {/* Conditional Button Rendering */}
-              {offer.offerer.toLowerCase() === account.toLowerCase() ? (
-                <button
-                  onClick={() => handleCancelSwap(offer.offerId)}
-                  disabled={loading}
-                  className="bg-red-500 text-white px-4 py-2 mt-2 rounded disabled:bg-gray-400"
-                >
-                  Cancel Offer
-                </button>
-              ) : (
-                matchingReservation && (
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      onClick={() => handleAcceptSwap(offer.offerId, matchingReservation.tokenId)}
-                      disabled={loading}
-                      className="bg-green-500 text-white px-4 py-2 rounded disabled:bg-gray-400"
-                    >
-                      Accept Swap
-                    </button>
-                    <button
-                      onClick={() => handleRejectSwap(offer.offerId)}
-                      disabled={loading}
-                      className="bg-orange-500 text-white px-4 py-2 rounded disabled:bg-gray-400"
-                    >
-                      Reject Offer
-                    </button>
-                  </div>
-                )
-              )}
-            </div>
-          );
-        })
-      )}
-    </div>
-  </div>
-)}
+          </div>
+        )}
 
         {activeTab === "admin" && (
           <div>
             <h2 className="text-2xl font-semibold mb-4">Admin Panel</h2>
             <p className="mb-4">Manage property verification (Admin only)</p>
             {properties.length === 0 ? (
-              <p>No properties available to verify.</p>
+              <p className="text-center text-gray-500">No properties available to verify.</p>
             ) : (
-              properties.map((prop) => (
-                <div key={prop.id} className="border p-4 mb-2 flex justify-between items-center">
-                  <div>
-                    <p>{prop.name} (ID: {prop.id})</p>
-                    <p>Verified: {prop.verified.toString()}</p>
-                    <p>Active: {prop.active.toString()}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {properties.map((prop) => (
+                  <div key={prop.id} className="border p-4 rounded">
+                    <h3 className="text-lg font-semibold">{prop.name} (ID: {prop.id})</h3>
+                    <div className="flex justify-between items-center mt-2">
+                      <div>
+                        <p className={prop.verified ? "text-green-600" : "text-yellow-600"}>
+                          {prop.verified ? "Verified" : "Unverified"}
+                        </p>
+                      </div>
+                      {!prop.verified && (
+                        <button
+                          onClick={() => handleVerifyProperty(prop.id)}
+                          disabled={loading}
+                          className="bg-yellow-500 text-white px-4 py-2 rounded disabled:bg-gray-400"
+                        >
+                          Verify
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  {!prop.verified && (
-                    <button
-                      onClick={() => handleVerifyProperty(prop.id)}
-                      disabled={loading}
-                      className="bg-yellow-500 text-white px-4 py-2 rounded disabled:bg-gray-400"
-                    >
-                      Verify Property
-                    </button>
-                  )}
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         )}
