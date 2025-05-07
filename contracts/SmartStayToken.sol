@@ -179,13 +179,6 @@ contract SmartStayToken is ERC721, ERC721Enumerable, ERC721URIStorage, AccessCon
         return nextTokenId;
     }
 
-    /**
-     * @dev Get the next property ID
-     * @return The next property ID
-     */
-    function getNextPropertyId() public view returns (uint256) {
-        return nextPropertyId;
-    }
 
     /**
      * @dev Set the current year
@@ -263,6 +256,12 @@ contract SmartStayToken is ERC721, ERC721Enumerable, ERC721URIStorage, AccessCon
      */
     function setBaseURI(string memory newBaseURI) external onlyRole(ADMIN_ROLE) {
         _baseTokenURI = newBaseURI;
+    }
+    /**
+     * @dev get Next PropertyId
+     */
+    function getNextPropertyId() public view returns (uint256) {
+        return nextPropertyId;
     }
 
     /**
