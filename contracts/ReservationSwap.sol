@@ -124,10 +124,13 @@ contract ReservationSwap is AccessControl, ReentrancyGuard {
         );
 
         // Verify offered slot still belongs to offerer
-        require(
-            vault.slotOwnership(offer.offeredTokenId, offer.offeredDay) == offer.offerer,
-            "Offerer no longer owns slot"
-        );
+        if (offer.offeredTokenId != 0) {
+            require(
+                vault.slotOwnership(offer.offeredTokenId, offer.offeredDay) == offer.offerer,
+                "Offerer no longer owns slot"
+            );
+        }
+
 
         offers[offerId].isActive = false;
         slotDayToOfferId[offer.offeredTokenId][offer.offeredDay] = 0;
@@ -181,7 +184,7 @@ contract ReservationSwap is AccessControl, ReentrancyGuard {
     function cancelOffer(uint256 offerId) external nonReentrant {
         Offer storage offer = offers[offerId];
         require(offer.offerer == msg.sender, "Not offer creator");
-        require(offer.isActive, "Offer not active");
+        //require(offer.isActive, "Offer not active");
 
         offer.isActive = false;
         if (offer.offerType == OfferType.SWAP) {
