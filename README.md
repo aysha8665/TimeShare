@@ -2,105 +2,108 @@
 
 ## Property Owner
 
-1. **As a property owner**, I want to register my property on the platform so that I can start minting reservation tokens.
-   - **Acceptance Criteria**:
-     - The platform provides a clear process for property registration.
-     - Property details are accurately captured and stored.
-     - The registration process includes necessary validations.
+1. **As a property owner**, I want to register my property on the platform by submitting required details (e.g., location, amenities, photos) so that I can mint reservation tokens.  
+   - **Acceptance Criteria**:  
+     - Registration form enforces validations (e.g., non-empty fields, valid addresses, image uploads).  
+     - Property data is stored securely on-chain or in a decentralized storage solution (e.g., IPFS).  
+     - A unique property ID is generated post-registration.  
 
-2. **As a property owner**, I want my property to be verified by an admin before activating it for reservation minting.
-   - **Acceptance Criteria**:
-     - Admins have a mechanism to review and verify properties.
-     - Verified properties are marked as active.
-     - Only active properties can have reservations minted.
+2. **As a property owner**, I want my property to undergo admin verification to ensure legitimacy before activating reservation minting.  
+   - **Acceptance Criteria**:  
+     - Admins can review property details and documents via a dashboard.  
+     - Verified properties are marked `active` on-chain.  
+     - Only `active` properties can mint reservation tokens.  
 
-3. **As a property owner**, I want to create unique reservation tokens for specific dates so that I can sell or rent out those time slots.
-   - **Acceptance Criteria**:
-     - The system allows minting of unique ERC721 tokens for each reservation slot.
-     - Each token includes metadata specifying the property, year, and week.
-     - Minting is restricted to verified and active properties.
+3. **As a property owner**, I want to mint ERC721 reservation tokens for specific weeks/dates, including metadata (property ID, dates, price), to manage bookings.  
+   - **Acceptance Criteria**:  
+     - Each token’s metadata includes `propertyId`, `startDate`, `endDate`, and `price` (stored on-chain or via IPFS).  
+     - Minting is restricted to the property owner’s wallet address.  
+     - Tokens are non-fungible and non-transferable until listed on ReservationSwap.  
 
-4. **As a property owner**, I want to manage my property's availability by updating its status or details.
-   - **Acceptance Criteria**:
-     - The system allows updating of property status (active/inactive).
-     - Property owners can update their property's information.
-     - Updates are reflected accurately in the system.
+4. **As a property owner**, I want to update my property’s status (active/inactive) or modify details (e.g., pricing, availability) to reflect changes.  
+   - **Acceptance Criteria**:  
+     - Property status changes trigger an on-chain event.  
+     - Updates to details require re-verification if critical (e.g., location).  
+     - Reservation tokens for inactive properties are automatically delisted.  
 
-5. **As a property owner**, I want to receive payment when someone buys my minted reservation token through transactions facilitated by ReservationSwap.
-   - **Acceptance Criteria**:
-     - When a reservation token is transferred from me in exchange for ETH or other assets via ReservationSwap.
-     - The transaction is recorded on the blockchain.
-     - Funds are transferred securely according to smart contract logic.
+5. **As a property owner**, I want to receive ETH payments automatically via ReservationSwap’s smart contract when my reservation token is sold.  
+   - **Acceptance Criteria**:  
+     - ETH is transferred to the owner’s wallet upon successful sale.  
+     - A fee (e.g., 2%) is deducted for the platform and recorded on-chain.  
+
+---
 
 ## Admin
 
-1. **As an admin**, I want to verify properties submitted by property owners after reviewing their credentials so that only legitimate properties are listed on the platform.
-   - **Acceptance Criteria**:
-     - Admins have access to review property applications.
-     - Verified properties are marked as active.
-     - Only admins can perform verification actions.
+1. **As an admin**, I want to verify property submissions by reviewing documents (e.g., ownership proof) to ensure only valid properties are listed.  
+   - **Acceptance Criteria**:  
+     - Admin dashboard displays pending properties with documents.  
+     - Verification status is updated on-chain (e.g., `verified` boolean).  
+     - Property owners receive notifications post-verification.  
 
-2. **As an admin**, I want to manage access control within the system by adding or removing admins and setting permissions.
-   - **Acceptance Criteria**:
-     - Admins can manage other admins' roles.
-     - Permissions for certain actions are set and managed appropriately.
-     - The system enforces role-based access control using OpenZeppelin's `AccessControl`.
+2. **As an admin**, I want to manage admin roles using OpenZeppelin’s `AccessControl` to ensure secure platform governance.  
+   - **Acceptance Criteria**:  
+     - Only `DEFAULT_ADMIN_ROLE` can grant/revoke admin privileges.  
+     - Role changes emit on-chain events for transparency.  
 
-## Reservation Holder
+---
 
-1. **As a user**, I want to search and find available reservation tokens on the market that match my travel plans.
-   - **Acceptance Criteria**:
-     - The platform provides search functionality for available reservation tokens.
-     - Users can filter tokens based on various attributes like location and dates.
+## Reservation Holder (Guest)
 
-2. **As a user**, I want to purchase a desired reservation token using ETH through ReservationSwap.
-   - **Acceptance Criteria**:
-     - The ReservationSwap contract allows buying tokens with ETH.
-     - Transactions are secure with correct fund transfers.
-     - Ownership of the token is transferred upon successful purchase.
+1. **As a guest**, I want to search for available reservation tokens by filters (dates, location, price) to find matching properties.  
+   - **Acceptance Criteria**:  
+     - Search results are fetched from on-chain data and metadata.  
+     - Filters include `maxPrice`, `dates`, and `amenities`.  
 
-3. **As a user who owns a reservation token**, I want to present this token as proof of my reservation when checking in at the property.
-   - **Acceptance Criteria**:
-     - Property owners recognize and validate the token as confirmation of reservation.
-     - A mechanism exists for verifying token ownership at check-in.
+2. **As a guest**, I want to purchase a reservation token using ETH via ReservationSwap’s escrow contract to secure my booking.  
+   - **Acceptance Criteria**:  
+     - Full payment in ETH is required to transfer token ownership.  
+     - The smart contract holds funds until check-in completion.  
 
-4. **As a user who owns a reservation token**, I want to list it for sale or swap on ReservationSwap if I no longer need it.
-   - **Acceptance Criteria**:
-     - The ReservationSwap contract allows listing tokens for sale or swap with specified terms.
-     - Users can specify prices in ETH or desired tokens for swaps.
-     - Transactions are facilitated securely through smart contract logic.
+3. **As a guest**, I want to display my reservation token in my wallet (e.g., MetaMask) as proof of ownership during check-in.  
+   - **Acceptance Criteria**:  
+     - Property owners can validate tokens via a platform interface.  
+     - Token metadata includes a QR code for quick verification.  
+
+4. **As a guest**, I want to resell or swap my reservation token on ReservationSwap if my plans change.  
+   - **Acceptance Criteria**:  
+     - Tokens can be listed for ETH or swapped for another token.  
+     - Listings expire automatically after the reservation date.  
+
+---
 
 ## Trader/Swapper
 
-1. **As a user with a reservation token**, I want to list it for sale on ReservationSwap specifying the price in ETH so potential buyers can purchase it directly.
-   - **Acceptance Criteria**:
-     - The ReservationSwap contract supports listing tokens for sale with specified prices.
-     - Buyers can purchase listed tokens directly through the contract.
+1. **As a trader**, I want to list my reservation token for sale on ReservationSwap with a fixed ETH price or auction.  
+   - **Acceptance Criteria**:  
+     - Listings include a `price` field and `expirationDate`.  
+     - Auctions support bidding with a minimum reserve price.  
 
-2. **As a user with multiple assets**, I want to propose swaps where I offer one token in exchange for another specific token or combination of assets.
-   - **Acceptance Criteria**:
-     - The ReservationSwap contract allows proposing swaps between tokens or with ETH.
-     - Users can specify which assets they wish to exchange.
-     - Swap proposals are handled securely with both parties agreeing before transfer.
+2. **As a trader**, I want to propose token swaps (e.g., my beach house week for a ski lodge week) to exchange reservations.  
+   - **Acceptance Criteria**:  
+     - Swap proposals require mutual approval from both parties.  
+     - Smart contract ensures atomic swaps (all-or-nothing execution).  
 
-3. **As a user looking for specific reservation tokens**, I want an efficient way to search and find available tokens on ReservationSwap that meet my criteria.
-   - **Acceptance Criteria**:
-     - The platform provides robust search functionality within ReservationSwap.
-     - Users can filter tokens based on various attributes like location and dates.
+3. **As a trader**, I want to browse active listings with advanced filters (e.g., “show only ocean-view properties”) to find swaps.  
+   - **Acceptance Criteria**:  
+     - Filters use token metadata attributes (e.g., `hasPool: true`).  
+     - Off-chain indexing (e.g., The Graph) enables fast queries.  
 
-4. **As any participant in ReservationSwap**, I expect all transactions to be secure and fair with no risk of fraud or loss of assets during trading.
-   - **Acceptance Criteria**:
-     - The smart contract ensures that both parties receive what they agreed upon.
-     - Funds and tokens are locked during transactions and released only upon successful completion.
+---
 
 ## General User
 
-1. **As any user**, I want all transactions involving SmartStayToken and ReservationSwap contracts recorded on the blockchain for transparency and immutability.
-   - **Acceptance Criteria**:
-     - All actions like minting, transferring tokens are recorded on-chain.
-     - The blockchain provides an auditable trail of all activities ensuring transparency and trust.
+1. **As a user**, I want all transactions (minting, sales, swaps) recorded on-chain for transparency.  
+   - **Acceptance Criteria**:  
+     - Events like `TokenMinted`, `TokenSold`, and `TokenSwapped` are emitted.  
+     - Users can view transaction history via blockchain explorers.  
 
-2. **As any user new to blockchain technology**, I need clear instructions on how to set up my wallet and interact with the SmartStay platform effectively without confusion.
-   - **Acceptance Criteria**:
-     - The platform provides comprehensive documentation and step-by-step guides.
-     - User interfaces are designed intuitively with support for various wallet types ensuring ease of use.
+2. **As a new user**, I want guided wallet setup (MetaMask/Coinbase) to interact with SmartStay seamlessly.  
+   - **Acceptance Criteria**:  
+     - In-app tutorials explain wallet connection and gas fees.  
+     - Testnet support allows practice with fake ETH.  
+
+3. **As a user**, I expect all smart contracts to be audited and secure to prevent asset loss.  
+   - **Acceptance Criteria**:  
+     - Contracts use reentrancy guards and fail-safe withdrawal patterns.  
+     - Third-party audit reports are publicly accessible.  
