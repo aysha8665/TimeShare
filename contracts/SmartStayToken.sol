@@ -159,7 +159,7 @@ contract SmartStayToken is ERC721, ERC721Enumerable, ERC721URIStorage, AccessCon
         require(vaultAddress != address(0), "Invalid vault address");
         require(property.isAvailable, "Property not available");
 
-        uint256 tokenId = nextTokenId++;
+        uint256 tokenId = nextTokenId;
         _mint(vaultAddress, tokenId);
         tokenToPropertyId[tokenId] = propertyId;
         tokenToYear[tokenId] = year;
@@ -167,7 +167,7 @@ contract SmartStayToken is ERC721, ERC721Enumerable, ERC721URIStorage, AccessCon
         propertyWeekToToken[propertyId][year][weekNumber] = tokenId;
 
         vault.initializeSlotOwnership(tokenId, msg.sender);
-
+        nextTokenId++;
         emit WeekMinted(tokenId, propertyId, year, weekNumber, msg.sender);
     }
 
